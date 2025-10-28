@@ -3,10 +3,10 @@ import pandas as pd
 import random
 import time
 
-# --- PAGE SETUP ---
+# --- PAGE CONFIG ---
 st.set_page_config(page_title="🧠 Exit Interview Insight Miner", page_icon="💬", layout="wide")
 
-# --- CUSTOM CSS ---
+# --- CSS ---
 st.markdown("""
     <style>
     body {
@@ -58,6 +58,18 @@ st.markdown("""
         font-size: 1.1em;
         color: #00796b;
     }
+    .remove-btn {
+        background-color: #f44336;
+        color: white;
+        border: none;
+        padding: 5px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.9em;
+    }
+    .remove-btn:hover {
+        background-color: #d32f2f;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -65,14 +77,15 @@ st.markdown("""
 st.markdown("<div class='title'>🧠 Exit Interview Insight Miner</div>", unsafe_allow_html=True)
 st.markdown("<div class='subtitle'>AI-powered insight dashboard for HR Business Partners & Talent Leaders</div>", unsafe_allow_html=True)
 
-# --- SIDEBAR ---
+# --- SIDEBAR FILTERS ---
 st.sidebar.header("🎛️ Filter Options")
 department = st.sidebar.selectbox("Department", ["All", "Sales", "HR", "Engineering", "Finance"])
 manager = st.sidebar.selectbox("Manager", ["All", "Alice Tan", "John Lim", "Siti Rahman", "David Wong"])
 sentiment_filter = st.sidebar.select_slider("Sentiment", ["Negative", "Neutral", "Positive"])
 
-# --- SAMPLE DATA ---
-data = {
+# --- INITIAL DATA ---
+initial_data = pd.DataFrame({
+    "Employee": ["Ali", "John", "Siti", "Raj", "Mei", "Hafiz"],
     "Department": ["Sales", "HR", "Engineering", "Finance", "Sales", "Engineering"],
     "Manager": ["Alice Tan", "John Lim", "Siti Rahman", "David Wong", "Alice Tan", "Siti Rahman"],
     "Exit_Reason": [
@@ -84,10 +97,14 @@ data = {
         "Toxic manager and lack of teamwork."
     ],
     "Sentiment": ["Negative", "Neutral", "Positive", "Negative", "Neutral", "Negative"]
-}
-df = pd.DataFrame(data)
+})
+
+# --- SESSION STATE ---
+if "exit_data" not in st.session_state:
+    st.session_state.exit_data = initial_data.copy()
 
 # --- FILTERING ---
+df = st.session_state.exit_data
 filtered_df = df.copy()
 if department != "All":
     filtered_df = filtered_df[filtered_df["Department"] == department]
@@ -96,13 +113,24 @@ if manager != "All":
 if sentiment_filter != "Neutral":
     filtered_df = filtered_df[filtered_df["Sentiment"] == sentiment_filter]
 
-# --- DISPLAY EXIT RESPONSES ---
+# --- DISPLAY TABLE WITH REMOVE BUTTON ---
 st.markdown("<div class='card'>", unsafe_allow_html=True)
 st.markdown("### 📋 Exit Interview Responses (Filtered View)")
-st.dataframe(filtered_df, use_container_width=True)
+st.write("If employee changes mind after discussion, click **'Remove After Discussion'** below:")
+
+for idx, row in filtered_df.iterrows():
+    with st.expander(f"👤 {row['Employee']} — {row['Department']} Dept"):
+        st.write(f"**Manager:** {row['Manager']}")
+        st.write(f"**Reason for Exit:** {row['Exit_Reason']}")
+        st.write(f"**Sentiment:** {row['Sentiment']}")
+        if st.button(f"🗑️ Remove After Discussion — {row['Employee']}", key=f"remove_{idx}"):
+            st.session_state.exit_data = st.session_state.exit_data.drop(idx)
+            st.success(f"✅ {row['Employee']} decided to stay. Removed from exit list.")
+            st.rerun()
+
 st.markdown("</div>", unsafe_allow_html=True)
 
-# --- JAVASCRIPT TYPEWRITER + SPINNER ---
+# --- JAVASCRIPT LOADING EFFECT ---
 st.markdown("""
 <script>
 function showSpinner(){
@@ -122,19 +150,19 @@ function showSpinner(){
   setTimeout(()=>{spinner.style.display = "none";}, 5500);
 }
 </script>
-<div id="spinner"> </div>
+<div id="spinner"></div>
 """, unsafe_allow_html=True)
 
 # --- RUN ANALYSIS BUTTON ---
 if st.button("🚀 Run AI Insight Miner"):
     st.markdown("<script>showSpinner();</script>", unsafe_allow_html=True)
     with st.spinner("Running sentiment & theme analysis..."):
-        time.sleep(5)
+        time.sleep(4)
 
-    # --- SIMULATED INSIGHT OUTPUT ---
+    # --- SIMULATED AI OUTPUT ---
     themes = ["Toxic management", "Low pay satisfaction", "Career growth issues", "Overwork fatigue"]
     selected_themes = random.sample(themes, 2)
-    sentiment_score = random.randint(60, 92)
+    sentiment_score = random.randint(65, 95)
 
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.markdown("### 💡 AI Insight Summary")
@@ -142,14 +170,14 @@ if st.button("🚀 Run AI Insight Miner"):
     st.markdown(f"<div class='insight'>Average Sentiment Score: <b>{sentiment_score}% Positive</b></div>", unsafe_allow_html=True)
     st.markdown(f"""
         <div class='insight'>🧾 Executive Summary:<br>
-        Recent exit interviews suggest <b>{selected_themes[0].lower()}</b> and 
-        <b>{selected_themes[1].lower()}</b> are key contributors to turnover. 
-        Recommend leadership coaching and pay structure review in affected departments.
+        Recent exit interviews indicate <b>{selected_themes[0].lower()}</b> and 
+        <b>{selected_themes[1].lower()}</b> as top turnover drivers. 
+        Recommend targeted manager coaching and pay benchmarking.
         </div>
     """, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-# --- TREND SUMMARY ---
+# --- DEPARTMENT SUMMARY ---
 summary_data = {
     "Department": ["Sales", "HR", "Engineering", "Finance"],
     "Avg Sentiment (%)": [62, 75, 68, 70],
@@ -157,7 +185,6 @@ summary_data = {
     "Resignation Trend": ["⬆ Increasing", "⬇ Decreasing", "⬆ Increasing", "➡ Stable"]
 }
 summary_df = pd.DataFrame(summary_data)
-
 st.markdown("<div class='card'>", unsafe_allow_html=True)
 st.markdown("### 📊 Department-Level Summary (Demo)")
 st.table(summary_df)
